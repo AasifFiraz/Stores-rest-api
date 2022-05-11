@@ -1,8 +1,8 @@
 from flask import Flask, jsonify
 from flask_restful import Api
 from flask_jwt_extended import JWTManager
-
-from resources.user import UserRegister, User, UserLogin, TokenRefresh
+from blacklist import BLACKLIST
+from resources.user import UserRegister, User, UserLogin, TokenRefresh, UserLogout
 from resources.store import Store, StoreList
 from resources.item import Item, ItemList
 from db import db
@@ -11,6 +11,8 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PROPAGATE_EXCEPTIONS'] = True
+app.config['JWT_BLACKLIST_ENABLED'] = True
+app.config['JWT_BLACKLIST_TOKEN_CHECKS'] = ['access', 'refresh']
 app.secret_key = "n3bo2i3eiofb2b1cs"  # app.config
 api = Api(app)
 
@@ -24,6 +26,12 @@ def create_tables():
 jwt_token = JWTManager(app=app)  # does not create /auth, we have to do manually
 
 
+@jwt_token.token_in_blacklist_loader
+def check_if_token_in_blacklist(decrypted_token):
+    return decrypted_token['jti'] in BLACKLIST
+
+
+# If the user has not used the token for a period of time
 @jwt_token.expired_token_loader
 def expired_token_callback():
     return jsonify({"description": "Token is expired", "error": "expired token"})
@@ -60,6 +68,7 @@ api.add_resource(UserLogin, '/login')
 api.add_resource(Store, '/store/<string:name>')
 api.add_resource(StoreList, '/stores')
 api.add_resource(TokenRefresh, '/refresh')
+api.add_resource(UserLogout, '/logout')
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)
