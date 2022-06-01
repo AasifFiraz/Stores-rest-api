@@ -1,3 +1,5 @@
+import datetime
+
 from flask_restful import Resource, reqparse
 from models.user import UserModel
 from hmac import compare_digest
@@ -63,7 +65,8 @@ class UserLogin(Resource):
         user = UserModel.find_by_username(data["username"])
         if user and compare_digest(user.password, data['password']):
             # Identity - This is what the identity function used to do in security.py
-            access_token = create_access_token(identity=user.id, fresh=True)
+            expires = datetime.timedelta(days=2)
+            access_token = create_access_token(identity=user.id, fresh=True, expires_delta=expires)
             refresh_token = create_refresh_token(user.id)
             return {
                 "access_token": access_token,
